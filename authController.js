@@ -29,10 +29,10 @@ const signUp = (req, res) => {
     // Insert
     const query = `
       INSERT INTO USER (USERNAME, EMAIL, ROLE, PASSWORD)
-      VALUES ('${username}', '${email}', '${role}', '${hashedPassword}')
+      VALUES (?, ?, ?, ?)
     `;
 
-    db.run(query, (err) => {
+    db.run(query, [username, email, role, hashedPassword], function(err) {
       if (err) {
         // Handle unique constraint violation
         if (err.message.includes('UNIQUE constraint')) {
@@ -69,9 +69,9 @@ const login = (req, res) => {
     return res.status(400).send('Please provide email and password.');
   }
 
-  const query = `SELECT * FROM USER WHERE EMAIL='${email}'`;
+  const query = `SELECT * FROM USER WHERE EMAIL=?`;
 
-  db.get(query, (err, row) => {
+  db.get(query, [email], (err, row) => {
     if (err) {
       console.log(err);
       return res.status(500).send('Database error');
@@ -87,7 +87,6 @@ const login = (req, res) => {
         console.error(err);
         return res.status(500).send('Error verifying password.');
       }
-
       if (!isMatch) {
         return res.status(401).send('Invalid credentials');
       }
@@ -128,7 +127,6 @@ const verifyToken = (req, res, next) => {
     if (err) {
       return res.status(403).send('Invalid or expired token');
     }
-
     req.user = { id: decoded.id, role: decoded.role };
     next();
   });
