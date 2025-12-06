@@ -5,6 +5,15 @@ const { db } = require('../db.js');
 const signToken = (id, role) => {
     return jwt.sign({id, role}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES_IN});
 }
+// log authentication events 
+const logAuthEvent = (email, status, req) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const query = `INSERT INTO AUTH_LOGS (email, status, ip) VALUES (?, ?, ?)`;
+
+  db.run(query, [email, status, ip], (err) => {
+    if (err) console.error('Failed to log authentication event:', err);
+  });
+};
 
 // POST /signup
 const signUp = (req, res) => {
@@ -44,6 +53,7 @@ const signUp = (req, res) => {
 
       // Create token
       const token = signToken(this.lastID, role);
+      logAuthEvent(email, 'signup_success', req); 
        //sends JWT as a secure cookie
       res.cookie('token', token, {
           httpOnly: true,
@@ -66,6 +76,7 @@ const login = (req, res) => {
   const password = req.body.password;
 
   if (!email || !password) {
+    logAuthEvent(email || 'N/A', 'FAILURE', req);
     return res.status(400).send('Please provide email and password.');
   }
 
@@ -74,10 +85,12 @@ const login = (req, res) => {
   db.get(query, [email], (err, row) => {
     if (err) {
       console.log(err);
+      logAuthEvent(email, 'FAILURE', req);
       return res.status(500).send('Database error');
     }
 
     if (!row) {
+      logAuthEvent(email, 'FAILURE', req);
       return res.status(401).send('Invalid credentials');
     }
 
@@ -85,14 +98,17 @@ const login = (req, res) => {
     bcrypt.compare(password, row.PASSWORD, (err, isMatch) => {
       if (err) {
         console.error(err);
+        logAuthEvent(email, 'FAILURE', req);
         return res.status(500).send('Error verifying password.');
       }
       if (!isMatch) {
+        logAuthEvent(email, 'FAILURE', req);
         return res.status(401).send('Invalid credentials');
       }
 
       // Generate JWT token for successful login
       const token = signToken(row.ID, row.ROLE);
+      logAuthEvent(email, 'SUCCESS', req);
        // send JWT as secure cookie 
       res.cookie('token', token, {
           httpOnly: true,
@@ -140,6 +156,4 @@ const verifyAdmin = (req, res, next) => {
     next();
   });
 };
-
-
 module.exports = { signUp, login, verifyToken, verifyAdmin };
