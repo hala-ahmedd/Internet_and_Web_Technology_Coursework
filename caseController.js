@@ -106,6 +106,21 @@ const donateToCase = (req, res) => {
       });
     }
 
+       // Check if donation would overfund
+    if (caseRow.collected_amount >= caseRow.needed_amount) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'This case is already fully funded. Donations are no longer accepted.',
+      });
+    }
+
+    if (Number(amount) + caseRow.collected_amount > caseRow.needed_amount) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Donation exceeds the required amount. Please donate a smaller amount.',
+      });
+    }
+
     // Insert donation
     const insertDonationQuery = `
       INSERT INTO DONATIONS (case_id, donor_id, amount)
