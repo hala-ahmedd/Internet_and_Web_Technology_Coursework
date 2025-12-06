@@ -1,21 +1,15 @@
 const express = require('express');
-const {
-  createUser,
-  retrieveAllUsers,
-} = require('../controllers/userController.js');
-
-const { verifyAdmin } = require('../controllers/authController.js'); // import it
-
+const { createUser, retrieveAllUsers } = require('../controllers/userController.js');
+const { verifyToken, verifyAdmin } = require('../controllers/authController.js');
 
 const userRouter = express.Router();
 
-// Apply verifyAdmin to all routes in this router
-userRouter.use(verifyAdmin)
+// Route to get all users (admin only)
+userRouter.route('/')
+  .get(verifyToken, verifyAdmin, retrieveAllUsers);
 
-// All users
-userRouter
-  .route('/')
-  .get(retrieveAllUsers)   // Get all users
-  .post(createUser);       // Add new user
+// Route for user signup (self-registration)
+userRouter.route('/signup')
+  .post(createUser);
 
 module.exports = userRouter;

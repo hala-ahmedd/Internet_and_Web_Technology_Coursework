@@ -1,18 +1,33 @@
 const express = require('express');
 const {
-  createcase,
-  retrieveAllcases,
+  retrieveAllCases,
+  createCase,
+  donateToCase,
 } = require('../controllers/caseController.js');
 
-const { verifyToken, verifyAdmin } = require('../controllers/authController.js'); // import it
+const { verifyToken } = require('../controllers/authController.js');
 
 const caseRouter = express.Router();
 
-// All trips
-caseRouter
-  .route('/')
-  .post(verifyAdmin, createcase)        // Add new trip
-  .get(verifyToken, retrieveAllcases);  // Get all trips for authenticated users
+//Role-based access middleware 
+const restrictTo = (role) => {
+  return (req, res, next) => {
+    if (req.user.role !== role) {
+      return res.status(403).json({
+        status: 'fail',
+        message: `Access denied: Only ${role}s are allowed`,
+      });
+    }
+    next();
+  };
+};
 
+// Route to get all cases (protected)
+caseRouter.route('/').get(verifyToken, retrieveAllCases);
+// Route for beneficiaries to create a case
+caseRouter.route('/create').post(verifyToken, restrictTo('beneficiary'), createCase);
 
-module.exports = caseRouter; 
+// Route for donors to donate to a case
+caseRouter.route('/donate').post(verifyToken, restrictTo('donor'), donateToCase);
+
+module.exports = caseRouter;
