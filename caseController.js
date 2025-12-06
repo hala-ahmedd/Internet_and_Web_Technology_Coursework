@@ -32,7 +32,15 @@ const createCase = (req, res) => {
       message: 'Please provide title, description, and needed amount.',
     });
   }
-
+  if (!title || typeof title !== 'string' || title.trim().length === 0) {
+    return res.status(400).json({ status: 'fail', message: 'Invalid or missing title.' });
+  }
+  if (!description || typeof description !== 'string' || description.trim().length === 0) {
+    return res.status(400).json({ status: 'fail', message: 'Invalid or missing description.' });
+  }
+  if (!neededAmount || isNaN(neededAmount) || Number(neededAmount) <= 0) {
+    return res.status(400).json({ status: 'fail', message: 'Needed amount must be a positive number.' });
+  }
   const query = `
     INSERT INTO CASE (title, description, needed_amount, collected_amount, created_by)
     VALUES (?, ?, ?, 0, ?)
@@ -72,6 +80,12 @@ const donateToCase = (req, res) => {
       status: 'fail',
       message: 'Please provide caseId and donation amount.',
     });
+  }
+  if (!caseId || isNaN(caseId) || Number(caseId) <= 0) {
+    return res.status(400).json({ status: 'fail', message: 'Invalid or missing caseId.' });
+  }
+  if (!amount || isNaN(amount) || Number(amount) <= 0) {
+    return res.status(400).json({ status: 'fail', message: 'Donation amount must be a positive number.' });
   }
 
   // Check if the case exists
