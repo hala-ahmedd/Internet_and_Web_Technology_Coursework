@@ -1,71 +1,143 @@
-const { trips } = require('../models/Trip');
+const { db } = require('../db.js');
 
-// Retrieve all trips
-const retrieveAllTrips = (req, res) => {
-  const allTrips = trips;
-  res.status(200).json({
-    status: 'success',
-    message: 'Trips retrieved successfully',
-    results: allTrips.length,
-    data: allTrips,
+// Retrieve all cases
+const retrieveAllCases = (req, res) => {
+  const query = `SELECT * FROM CASE`;
+
+  db.all(query, [], (err, cases) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Database error',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Cases retrieved successfully',
+      results: cases.length,
+      data: cases,
+    });
   });
 };
 
-// Create a new trip
-const createTrip = (req, res) => {
-  const {
-    destinationName,
-    location,
-    continent,
-    language,
-    description,
-    flightCost,
-    accommodationCost,
-    mealCost,
-    visaCost,
-    transportationCost,
-    currencyCode,
-  } = req.body;
+// Create a new case (beneficiary only)
+const createCase = (req, res) => {
+  const { title, description, neededAmount } = req.body;
 
-  if (
-    !destinationName ||
-    !location ||
-    !continent ||
-    !language ||
-    !description
-  ) {
+  if (!title || !description || !neededAmount) {
     return res.status(400).json({
       status: 'fail',
-      message: 'Please provide all required fields.',
+      message: 'Please provide title, description, and needed amount.',
     });
   }
 
-  const newTrip = {
-    id: trips.length + 1,
-    destinationName,
-    location,
-    continent,
-    language,
-    description,
-    flightCost: flightCost || 0,
-    accommodationCost: accommodationCost || 0,
-    mealCost: mealCost || 0,
-    visaCost: visaCost || 0,
-    transportationCost: transportationCost || 0,
-    currencyCode: currencyCode || 'N/A',
-  };
+  const query = `
+    INSERT INTO CASE (title, description, needed_amount, collected_amount, created_by)
+    VALUES (?, ?, ?, 0, ?)
+  `;
+  const values = [title, description, neededAmount, req.user.id];
 
-  trips.push(newTrip);
+  db.run(query, values, function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Database error',
+      });
+    }
 
-  res.status(201).json({
-    status: 'success',
-    message: 'Trip created successfully',
-    data: newTrip,
+    res.status(201).json({
+      status: 'success',
+      message: 'Case created successfully',
+      case: {
+        case_id: this.lastID,
+        title,
+        description,
+        needed_amount: neededAmount,
+        collected_amount: 0,
+        created_by: req.user.id,
+      },
+    });
   });
 };
 
+// Donate to a case (donor only)
+const donateToCase = (req, res) => {
+  const { caseId, amount } = req.body;
+
+  if (!caseId || !amount) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Please provide caseId and donation amount.',
+    });
+  }
+
+  // Check if the case exists
+  const checkCaseQuery = `SELECT * FROM CASE WHERE case_id = ?`;
+  db.get(checkCaseQuery, [caseId], (err, caseRow) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Database error',
+      });
+    }
+
+    if (!caseRow) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Case not found',
+      });
+    }
+
+    // Insert donation
+    const insertDonationQuery = `
+      INSERT INTO DONATIONS (case_id, donor_id, amount)
+      VALUES (?, ?, ?)
+    `;
+    db.run(insertDonationQuery, [caseId, req.user.id, amount], function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Database error',
+        });
+      }
+
+      // Update the collected amount in CASE table
+      const updateCaseQuery = `
+        UPDATE CASE
+        SET collected_amount = collected_amount + ?
+        WHERE case_id = ?
+      `;
+      db.run(updateCaseQuery, [amount, caseId], function(err) {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({
+            status: 'fail',
+            message: 'Database error',
+          });
+        }
+
+        res.status(201).json({
+          status: 'success',
+          message: 'Donation successful',
+          donation: {
+            id: this.lastID,
+            case_id: caseId,
+            donor_id: req.user.id,
+            amount,
+          },
+        });
+      });
+    });
+  });
+};
 
 module.exports = {
-  createTrip,
-  retrieveAllTrips
+  retrieveAllCases,
+  createCase,
+  donateToCase,
 };
