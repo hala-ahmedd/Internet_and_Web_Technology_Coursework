@@ -1,7 +1,7 @@
 const sqlite = require('sqlite3');
 const db = new sqlite.Database('charity.db');
 
-// New Case Table
+//Case Table
 const createCaseTable = `CREATE TABLE IF NOT EXISTS CASE (
   ID INTEGER PRIMARY KEY AUTOINCREMENT,
   TITLE TEXT NOT NULL,
@@ -12,7 +12,7 @@ const createCaseTable = `CREATE TABLE IF NOT EXISTS CASE (
   CREATED_AT DATETIME DEFAULT CURRENT_TIMESTAMP
 )`;
 
-// New User Table
+//User Table
 const createUserTable = `CREATE TABLE IF NOT EXISTS USER (
   ID INTEGER PRIMARY KEY AUTOINCREMENT,
   USERNAME TEXT UNIQUE NOT NULL,
@@ -22,7 +22,8 @@ const createUserTable = `CREATE TABLE IF NOT EXISTS USER (
   VERIFIED INTEGER DEFAULT 0,
   ACTIVE INTEGER DEFAULT 1
 )`;
-// New Donations Table
+
+//Donations Table
 const createDonationTable = `CREATE TABLE IF NOT EXISTS DONATIONS (
   ID INTEGER PRIMARY KEY AUTOINCREMENT,
   CASE_ID INTEGER NOT NULL,
@@ -31,9 +32,35 @@ const createDonationTable = `CREATE TABLE IF NOT EXISTS DONATIONS (
   DONATED_AT DATETIME DEFAULT CURRENT_TIMESTAMP
 )`;
 
+//Authentication Logs Table
+const createAuthLogsTable = `CREATE TABLE IF NOT EXISTS AUTH_LOGS (
+  ID INTEGER PRIMARY KEY AUTOINCREMENT,
+  EMAIL TEXT,
+  STATUS TEXT,
+  IP TEXT,
+  TIMESTAMP DATETIME DEFAULT CURRENT_TIMESTAMP
+)`;
+
+//Initialize all tables 
+db.serialize(() => {
+  db.run(createCaseTable, (err) => {
+    if (err) console.log('Error creating CASE table:', err.message);
+  });
+  db.run(createUserTable, (err) => {
+    if (err) console.log('Error creating USER table:', err.message);
+  });
+  db.run(createDonationTable, (err) => {
+    if (err) console.log('Error creating DONATIONS table:', err.message);
+  });
+  db.run(createAuthLogsTable, (err) => {
+    if (err) console.log('Error creating AUTH_LOGS table:', err.message);
+  });
+});
+
 module.exports = {
   db,
   createCaseTable,
   createUserTable,
-  createDonationTable
+  createDonationTable,
+  createAuthLogsTable
 };
