@@ -9,9 +9,13 @@ const signToken = (id, role) => {
 // POST /signup
 const signUp = (req, res) => {
   const email = req.body.email;
+  const username = req.body.username;
   const password = req.body.password;
   const role = 'user'; // default to non-admin
-
+  const name = req.body.name; 
+  const age = req.body.age;
+  const idNumber = req.body.idNumber;
+  
   if (!email || !password) {
     return res.status(400).send('Please provide email, and password.');
   }
@@ -24,8 +28,8 @@ const signUp = (req, res) => {
 
     // Insert
     const query = `
-      INSERT INTO USER (EMAIL, ROLE, PASSWORD)
-      VALUES ('${email}', '${role}', '${hashedPassword}')
+      INSERT INTO USER (USERNAME, EMAIL, ROLE, PASSWORD)
+      VALUES ('${username}', '${email}', '${role}', '${hashedPassword}')
     `;
 
     db.run(query, (err) => {
@@ -40,10 +44,18 @@ const signUp = (req, res) => {
 
       // Create token
       const token = signToken(this.lastID, role);
+       //sends JWT as a secure cookie
+      res.cookie('token', token, {
+          httpOnly: true,
+          secure: true,        
+          sameSite: 'Strict',
+          maxAge: 3600000      // 1 hour
+      });
+
       return res.status(201).json({
         status: 'success',
         message: 'Registration successful',
-        token,
+        // token removed from JSON because it's in the cookie
       });
     });
   });
@@ -82,15 +94,21 @@ const login = (req, res) => {
 
       // Generate JWT token for successful login
       const token = signToken(row.ID, row.ROLE);
-
+       // send JWT as secure cookie 
+      res.cookie('token', token, {
+          httpOnly: true,
+          secure: true,        
+          sameSite: 'Strict',
+          maxAge: 3600000      // 1 hour
+      });
       return res.status(200).json({
         message: 'Login successful',
         user: {
           id: row.ID,
           email: row.EMAIL,
           role: row.ROLE,
-        },
-        token,
+        }
+        // token removed from JSON because it's in the cookie
       });
     });
   });
