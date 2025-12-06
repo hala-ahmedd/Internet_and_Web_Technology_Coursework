@@ -200,5 +200,22 @@ const verifyAdmin = (req, res, next) => {
     next();
   });
 };
-
-module.exports = { signUp, login, verifyToken, verifyAdmin };
+// Verify Beneficiary
+const verifyBeneficiary = (req, res, next) => {
+  verifyToken(req, res, () => {
+    if (req.user.role !== 'beneficiary') {
+      return res.status(403).send('Access denied: Beneficiaries only');
+    }
+    next();
+  });
+};
+// Verify Donor
+const verifyDonor = (req, res, next) => {
+  verifyToken(req, res, () => {
+    if (req.user.role !== 'donor') {
+      return res.status(403).send('Access denied: Donors only');
+    }
+    next();
+  });
+};
+module.exports = { signUp, login, verifyToken, verifyAdmin, verifyBeneficiary, verifyDonor };
