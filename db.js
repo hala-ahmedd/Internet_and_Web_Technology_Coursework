@@ -1,7 +1,6 @@
 const sqlite = require('sqlite3');
 const db = new sqlite.Database('charity.db');
 
-//USER TABLE
 const createUserTable = `
 CREATE TABLE IF NOT EXISTS USER (
   ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -11,15 +10,11 @@ CREATE TABLE IF NOT EXISTS USER (
   EMAIL TEXT UNIQUE NOT NULL,
   NAME TEXT,
   IDNUMBER TEXT,
-  EMAIL_IV TEXT,
-  NAME_IV TEXT,
-  IDNUMBER_IV TEXT,
-  VERIFIED INTEGER DEFAULT 0,
-  ACTIVE INTEGER DEFAULT 1
-);
+  IS_ACTIVE INTEGER DEFAULT 1,
+  DOCUMENT_STATUS TEXT DEFAULT 'PENDING'
+)
 `;
 
-//CASE TABLE 
 const createCaseTable = `
 CREATE TABLE IF NOT EXISTS CASES (
   CASE_ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,11 +23,11 @@ CREATE TABLE IF NOT EXISTS CASES (
   NEEDED_AMOUNT REAL NOT NULL,
   COLLECTED_AMOUNT REAL DEFAULT 0,
   CREATED_BY INTEGER NOT NULL,
+  STATUS TEXT DEFAULT 'OPEN',
   CREATED_AT DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 `;
 
-//DONATION TABLE
 const createDonationTable = `
 CREATE TABLE IF NOT EXISTS DONATIONS (
   ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +38,20 @@ CREATE TABLE IF NOT EXISTS DONATIONS (
 );
 `;
 
-//AUTHENTICATION LOGS TABLE
+const createInstallmentTable = `
+CREATE TABLE IF NOT EXISTS INSTALLMENTS (
+  ID INTEGER PRIMARY KEY AUTOINCREMENT,
+  CASE_ID INTEGER NOT NULL,
+  DONOR_ID INTEGER NOT NULL,
+  TOTAL_AMOUNT REAL NOT NULL,
+  PAID_AMOUNT REAL DEFAULT 0,
+  INTERVAL_DAYS INTEGER DEFAULT 30,
+  NEXT_DUE_DATE TEXT,
+  STATUS TEXT DEFAULT 'ACTIVE',
+  CREATED_AT DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
 const createAuthLogsTable = `
 CREATE TABLE IF NOT EXISTS AUTH_LOGS (
   ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +62,17 @@ CREATE TABLE IF NOT EXISTS AUTH_LOGS (
 );
 `;
 
-//Initialize all tables 
+const addColumnIfNotExists = (table, column, definition, cb) => {
+  db.all(`PRAGMA table_info(${table})`, (err, rows) => {
+    if (err) return cb && cb(err);
+    const exists = rows && rows.some(r => r.name.toUpperCase() === column.toUpperCase());
+    if (exists) return cb && cb(null, false);
+    db.run(`ALTER TABLE ${table} ADD COLUMN ${definition}`, (err2) => {
+      cb && cb(err2, true);
+    });
+  });
+};
+
 db.serialize(() => {
   db.run(createUserTable, (err) => {
     if (err) console.error('Error creating USER table:', err.message);
@@ -68,8 +86,22 @@ db.serialize(() => {
     if (err) console.error('Error creating DONATIONS table:', err.message);
   });
 
+  db.run(createInstallmentTable, (err) => {
+    if (err) console.error('Error creating INSTALLMENTS table:', err.message);
+  });
+
   db.run(createAuthLogsTable, (err) => {
     if (err) console.error('Error creating AUTH_LOGS table:', err.message);
+  });
+
+  addColumnIfNotExists('USER', 'IS_ACTIVE', 'IS_ACTIVE INTEGER DEFAULT 1', (err) => {
+    if (err) console.error('Failed to add IS_ACTIVE column:', err.message);
+  });
+  addColumnIfNotExists('USER', 'DOCUMENT_STATUS', "DOCUMENT_STATUS TEXT DEFAULT 'PENDING'", (err) => {
+    if (err) console.error('Failed to add DOCUMENT_STATUS column:', err.message);
+  });
+  addColumnIfNotExists('CASES', 'STATUS', "STATUS TEXT DEFAULT 'OPEN'", (err) => {
+    if (err) console.error('Failed to add STATUS column:', err.message);
   });
 });
 
@@ -78,5 +110,6 @@ module.exports = {
   createUserTable,
   createCaseTable,
   createDonationTable,
-  createAuthLogsTable
+  createAuthLogsTable,
+  createInstallmentTable
 };
