@@ -1,30 +1,43 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const caseRouter = require('./routes/caseroutes.js');
+const caseRouter = require('./routes/caseRoutes.js');
 const userRouter = require('./routes/userRoutes.js');
 const authRouter = require('./routes/authRoutes.js');
+const installmentRouter = require('./routes/installmentRoutes.js');
 
-// Load environment variables from .env file
 dotenv.config();
 
-// Create an instance of the Express application
 const app = express();
 
-// Enable CORS
-app.use(cors());
+app.use(cors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Use middleware to parse JSON data from request bodies
 app.use(express.json());
 
-// Health check route
+app.use((req, res, next) => {
+  req.cookies = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      req.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+  }
+  next();
+});
+
 app.get('/', (req, res) => {
   res.status(200).send('API is running');
 });
 
-// API routes
 app.use('/cases', caseRouter);
 app.use('/users', userRouter);
 app.use('/auth', authRouter);
+app.use('/installments', installmentRouter);
 
 module.exports = { app };
